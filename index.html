@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Watch</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            padding: 20px;
+        }
+        .clock {
+            font-size: 2em;
+            margin: 20px 0;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+        button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Online Watch</h1>
+        <div class="clock">
+            <p id="analog">Analog Watch: <span id="analog-time">Loading...</span></p>
+            <p id="digital">Digital Watch: <span id="digital-time">Loading...</span></p>
+        </div>
+        
+        <div class="controls">
+            <label for="timezones">Choose Timezone:</label>
+            <select id="timezones">
+                <option value="Asia/Kolkata" selected>Delhi (Asia/Kolkata)</option>
+                <option value="America/New_York">New York (America/New_York)</option>
+                <option value="Europe/London">London (Europe/London)</option>
+                <option value="Asia/Tokyo">Tokyo (Asia/Tokyo)</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <button onclick="toggleFormat()">Toggle 12/24 Hour Format</button>
+            <button onclick="startStopwatch()">Start Stopwatch</button>
+            <button onclick="stopStopwatch()">Stop Stopwatch</button>
+            <button onclick="resetStopwatch()">Reset Stopwatch</button>
+        </div>
+
+        <div class="controls">
+            <label for="alarm">Set Alarm (HH:MM:SS):</label>
+            <input type="time" id="alarm" step="1">
+            <button onclick="setAlarm()">Set Alarm</button>
+        </div>
+
+        <p id="stopwatch">Stopwatch: 00:00:00</p>
+    </div>
+
+    <script>
+        let is24HourFormat = true;
+        let alarmTime = null;
+        let stopwatchInterval;
+        let stopwatchSeconds = 0;
+
+        function fetchTime(timezone) {
+            fetch(`https://worldtimeapi.org/api/timezone/${timezone}`)
+                .then(response => response.json())
+                .then(data => {
+                    const datetime = new Date(data.utc_datetime);
+                    updateClock(datetime, data.utc_offset);
+                })
+                .catch(err => console.error("Error fetching time: ", err));
+        }
+
+        function updateClock(datetime, offset) {
+            const currentTime = new Date(datetime.getTime() + parseOffset(offset));
+            const hours = is24HourFormat ? currentTime.getHours() : ((currentTime.getHours() + 11) % 12 + 1);
+            const minutes = String(currentTime.getMinutes()).padStart(2, '0');
+            const seconds = String(currentTime.getSeconds()).padStart(2, '0');
+
+            document.getElementById("digital-time").textContent = `${hours}:${minutes}:${seconds}`;
+            document.getElementById("analog-time").textContent = currentTime.toLocaleTimeString();
+        }
+
+        function parseOffset(offset) {
+            const [hours, minutes] = offset.split(":").map(Number);
+            return (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+        }
+
+        function toggleFormat() {
+            is24HourFormat = !is24HourFormat;
+        }
+
+        function startStopwatch() {
+            if (!stopwatchInterval) {
+                stopwatchInterval = setInterval(() => {
+                    stopwatchSeconds++;
+                    const hours = String(Math.floor(stopwatchSeconds / 3600)).padStart(2, '0');
+                    const minutes = String(Math.floor((stopwatchSeconds % 3600) / 60)).padStart(2, '0');
+                    const seconds = String(stopwatchSeconds % 60).padStart(2, '0');
+                    document.getElementById("stopwatch").textContent = `Stopwatch: ${hours}:${minutes}:${seconds}`;
+                }, 1000);
+            }
+        }
+
+        function stopStopwatch() {
+            clearInterval(stopwatchInterval);
+            stopwatchInterval = null;
+        }
+
+        function resetStopwatch() {
+            stopwatchSeconds = 0;
+            document.getElementById("stopwatch").textContent = "Stopwatch: 00:00:00";
+        }
+
+        function setAlarm() {
+            const alarmInput = document.getElementById("alarm").value;
+            if (alarmInput) {
+                alarmTime = alarmInput;
+                alert(`Alarm set for ${alarmTime}`);
+                checkAlarm();
+            }
+        }
+
+        function checkAlarm() {
+            setInterval(() => {
+                const now = new Date();
+                const currentTime = now.toTimeString().split(" ")[0];
+                if (alarmTime && alarmTime === currentTime) {
+                    alert("Alarm ringing!");
+                    alarmTime = null; // Reset the alarm
+                }
+            }, 1000);
+        }
+
+        // Initialize the clock with Delhi timezone
+        document.getElementById("timezones").addEventListener("change", (e) => {
+            fetchTime(e.target.value);
+        });
+
+        setInterval(() => {
+            const timezone = document.getElementById("timezones").value;
+            fetchTime(timezone);
+        }, 1000);
+
+        fetchTime("Asia/Kolkata");
+    </script>
+</body>
+</html>
